@@ -558,3 +558,87 @@ function exportarPDF() {
     doc.save(`Justificativas_Ponto_${meses[mesAtual]}_${anoAtual}.pdf`);
 }
 window.exportarPDF = exportarPDF;
+// Exportar PDF — Todos os aprovados (sem filtro de mês)
+function exportarPDFTodos() {
+    const todos = todasJustificativas.filter(j => j.status === 'aprovado');
+
+    if (todos.length === 0) {
+        alert('Não há justificativas aprovadas para exportar.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+    // Título
+    doc.setFontSize(18);
+    doc.setTextColor(46, 125, 50);
+    doc.text('Justificativas de Ponto - Diu Vitae', 105, 20, { align: 'center' });
+
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Todos os Aprovados', 105, 30, { align: 'center' });
+    doc.text(`Total: ${todos.length} justificativa(s)`, 105, 37, { align: 'center' });
+
+    doc.setDrawColor(46, 125, 50);
+    doc.line(20, 42, 190, 42);
+
+    let y = 50;
+
+    // Ordenar por data
+    todos.sort((a, b) => new Date(a.data) - new Date(b.data));
+
+    todos.forEach((just, index) => {
+        if (y > 260) { doc.addPage(); y = 20; }
+
+        const data = new Date(just.data).toLocaleDateString('pt-BR');
+
+        // Nome e CPF
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${index + 1}. ${just.nome}${just.cpf ? ' — CPF: ' + just.cpf : ''}`, 20, y);
+
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        y += 6;
+        doc.text(`Data: ${data}`, 20, y);
+
+        // Marcações
+        const lista = (just.marcacoes && Array.isArray(just.marcacoes) && just.marcacoes.length > 0)
+            ? just.marcacoes
+            : (just.horario ? [{ tipo: just.tipo, horario: just.horario }] : []);
+
+        lista.forEach(m => {
+            y += 5;
+            if (y > 270) { doc.addPage(); y = 20; }
+            const linhaM = (m.tipo === 'intervalo' && m.horarioSaida)
+                ? `  • Intervalo: saída ${m.horarioSaida} / retorno ${m.horarioRetorno}`
+                : `  • ${getTipoLabel(m.tipo)}: ${m.horario}`;
+            doc.text(linhaM, 20, y);
+        });
+
+        y += 5;
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.text(`Motivo: ${just.motivo.substring(0, 80)}${just.motivo.length > 80 ? '...' : ''}`, 20, y);
+
+        y += 10;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, y, 190, y);
+        y += 8;
+    });
+
+    // Rodapé
+    const totalPaginas = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPaginas; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Página ${i} de ${totalPaginas}`, 105, 290, { align: 'center' });
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 105, 295, { align: 'center' });
+    }
+
+    doc.save(`Justificativas_Ponto_Todos_Aprovados_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+}
+window.exportarPDFTodos = exportarPDFTodos;
+

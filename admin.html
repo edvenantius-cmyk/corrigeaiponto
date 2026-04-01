@@ -144,6 +144,22 @@
             transform: translateY(-2px);
         }
 
+        .btn-pdf-all {
+            padding: 10px 20px;
+            background: #7B3F00;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-pdf-all:hover {
+            background: #5C2E00;
+            transform: translateY(-2px);
+        }
+
         .logout-btn {
             padding: 10px 20px;
             background: rgba(255,255,255,0.2);
@@ -449,7 +465,10 @@
             <h1>⏰ Painel RH - Justificativas de Ponto</h1>
             <div class="topbar-actions">
                 <button class="btn-pdf" onclick="exportarPDF()">
-                    📄 Exportar PDF do Mês
+                    📄 PDF do Mês
+                </button>
+                <button class="btn-pdf-all" onclick="exportarPDFTodos()">
+                    📋 PDF Todos Aprovados
                 </button>
                 <button class="logout-btn" onclick="logout()">🚪 Sair</button>
             </div>
