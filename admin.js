@@ -111,6 +111,31 @@ function atualizarEstatisticas() {
     `;
 }
 
+// Helper: label do tipo
+function getTipoLabel(tipo) {
+    return {
+        'entrada': 'Entrada',
+        'saida_almoco': 'Saída Almoço',
+        'volta_almoco': 'Volta Almoço',
+        'intervalo': 'Intervalo',
+        'saida': 'Saída'
+    }[tipo] || tipo;
+}
+
+// Helper: resumo de marcações para exibição compacta na tabela
+function getMarcacoesResumo(just) {
+    if (just.marcacoes && just.marcacoes.length > 0) {
+        return just.marcacoes.map(m => {
+            if (m.tipo === 'intervalo') {
+                return `Intervalo (${m.horarioSaida}–${m.horarioRetorno})`;
+            }
+            return `${getTipoLabel(m.tipo)} ${m.horario}`;
+        }).join('<br>');
+    }
+    // Retrocompatibilidade com registros antigos
+    return `${getTipoLabel(just.tipo)} ${just.horario}`;
+}
+
 // Renderizar tabela
 function renderizarTabela(justificativas) {
     const tbody = document.getElementById('tabelaJustificativas');
@@ -140,19 +165,14 @@ function renderizarTabela(justificativas) {
         }[statusClass];
         
         const tipoClass = just.tipo;
-        const tipoLabel = {
-            'entrada': 'Entrada',
-            'saida_almoco': 'Saída Almoço',
-            'volta_almoco': 'Volta Almoço',
-            'saida': 'Saída'
-        }[just.tipo];
+        const tipoLabel = getTipoLabel(just.tipo);
         
         return `
             <tr>
-                <td><strong>${just.nome}</strong></td>
+                <td><strong>${just.nome}</strong>${just.cpf ? `<br><small style="color:#6B7280">${just.cpf}</small>` : ""}</td>
                 <td>${data}</td>
-                <td><strong>${just.horario}</strong></td>
-                <td><span class="badge ${tipoClass}">${tipoLabel}</span></td>
+
+                <td style="font-size:13px;">${getMarcacoesResumo(just)}</td>
                 <td><span class="badge ${statusClass}">${statusLabel}</span></td>
                 <td style="white-space: nowrap;">
                     <button class="btn-action btn-view" onclick='verDetalhes("${just.id}")' title="Ver detalhes">
@@ -204,18 +224,35 @@ function verDetalhes(id) {
         new Date(just.dataEnvio.toDate()).toLocaleString('pt-BR') : 
         'Aguardando...';
     
-    const tipoLabel = {
-        'entrada': 'Entrada',
-        'saida_almoco': 'Saída para Almoço',
-        'volta_almoco': 'Volta do Almoço',
-        'saida': 'Saída'
-    }[just.tipo];
-    
     const statusLabel = {
         'pendente': 'Pendente',
         'aprovado': 'Aprovado',
         'rejeitado': 'Rejeitado'
     }[just.status || 'pendente'];
+
+    // Montar bloco de marcações (suporte a múltiplas e retrocompat)
+    let marcacoesHTML = '';
+    if (just.marcacoes && just.marcacoes.length > 0) {
+        marcacoesHTML = just.marcacoes.map((m, i) => {
+            if (m.tipo === 'intervalo') {
+                return `<div style="margin-bottom:6px;"><strong>${i+1}. Intervalo</strong> — Saída: ${m.horarioSaida} / Retorno: ${m.horarioRetorno}</div>`;
+            }
+            return `<div style="margin-bottom:6px;"><strong>${i+1}. ${getTipoLabel(m.tipo)}</strong> — ${m.horario}</div>`;
+        }).join('');
+    } else {
+        marcacoesHTML = `<div><strong>${getTipoLabel(just.tipo)}</strong> — ${just.horario}</div>`;
+    }
+
+    // Texto para copiar (todas as marcações)
+    let textoMarcacoes = '';
+    if (just.marcacoes && just.marcacoes.length > 0) {
+        textoMarcacoes = just.marcacoes.map(m => {
+            if (m.tipo === 'intervalo') return `Intervalo: saída ${m.horarioSaida} / retorno ${m.horarioRetorno}`;
+            return `${getTipoLabel(m.tipo)}: ${m.horario}`;
+        }).join('\n');
+    } else {
+        textoMarcacoes = `${getTipoLabel(just.tipo)}: ${just.horario}`;
+    }
     
     document.getElementById('modalBody').innerHTML = `
         <div class="info-grid">
@@ -224,16 +261,12 @@ function verDetalhes(id) {
                 <div class="value">${just.nome}</div>
             </div>
             <div class="info-item">
+                <div class="label">CPF</div>
+                <div class="value">${just.cpf || '—'}</div>
+            </div>
+            <div class="info-item">
                 <div class="label">Data</div>
                 <div class="value">${data}</div>
-            </div>
-            <div class="info-item">
-                <div class="label">Horário</div>
-                <div class="value">${just.horario}</div>
-            </div>
-            <div class="info-item">
-                <div class="label">Tipo de Marcação</div>
-                <div class="value">${tipoLabel}</div>
             </div>
             <div class="info-item">
                 <div class="label">Status</div>
@@ -244,6 +277,11 @@ function verDetalhes(id) {
                 <div class="value">${dataEnvio}</div>
             </div>
         </div>
+
+        <h3 style="margin-top: 20px; margin-bottom: 10px; color: #2E7D32;">🕐 Marcações Esquecidas</h3>
+        <div style="background: #F9FAFB; padding: 15px; border-radius: 8px; border-left: 4px solid #2E7D32;">
+            ${marcacoesHTML}
+        </div>
         
         <h3 style="margin-top: 20px; margin-bottom: 10px; color: #2E7D32;">📝 Motivo/Justificativa</h3>
         <div style="background: #F9FAFB; padding: 15px; border-radius: 8px; border-left: 4px solid #2E7D32;">
@@ -253,13 +291,13 @@ function verDetalhes(id) {
         <h3 style="margin-top: 20px; margin-bottom: 10px; color: #2E7D32;">📋 Copiar para Outro Sistema</h3>
         
         <div class="copy-box">
-            <button class="copy-btn" onclick='copiarTexto("${just.horario}")'>📋 Copiar</button>
-            <strong>Horário:</strong><br>
-            ${just.horario}
+            <button class="copy-btn" onclick='copiarTexto("${textoMarcacoes.replace(/"/g, "&quot;").replace(/\n/g, "\\n")}".replace(/\\n/g,"\n"))'>📋 Copiar</button>
+            <strong>Marcações:</strong><br>
+            ${textoMarcacoes.replace(/\n/g, '<br>')}
         </div>
         
         <div class="copy-box">
-            <button class="copy-btn" onclick='copiarTexto("${just.motivo.replace(/"/g, '&quot;').replace(/\n/g, ' ')}")'>📋 Copiar</button>
+            <button class="copy-btn" onclick='copiarTexto("${just.motivo.replace(/"/g, "&quot;").replace(/\n/g, " ")}">📋 Copiar</button>
             <strong>Motivo:</strong><br>
             ${just.motivo}
         </div>
@@ -307,15 +345,25 @@ function copiarTexto(texto) {
 }
 window.copiarTexto = copiarTexto;
 
-// Copiar dados (horário + motivo)
+// Copiar dados (marcações + motivo)
 function copiarDados(id) {
     const just = todasJustificativas.find(j => j.id === id);
     if (!just) return;
     
-    const texto = `Horário: ${just.horario}\n\nMotivo: ${just.motivo}`;
+    let linhasMarcacoes = '';
+    if (just.marcacoes && just.marcacoes.length > 0) {
+        linhasMarcacoes = just.marcacoes.map(m => {
+            if (m.tipo === 'intervalo') return `Intervalo: saída ${m.horarioSaida} / retorno ${m.horarioRetorno}`;
+            return `${getTipoLabel(m.tipo)}: ${m.horario}`;
+        }).join('\n');
+    } else {
+        linhasMarcacoes = `${getTipoLabel(just.tipo)}: ${just.horario}`;
+    }
+    
+    const texto = `Colaborador: ${just.nome}${just.cpf ? ' | CPF: ' + just.cpf : ''}\nMarcações:\n${linhasMarcacoes}\n\nMotivo: ${just.motivo}`;
     
     navigator.clipboard.writeText(texto).then(() => {
-        mostrarToast('✅ Horário e motivo copiados!');
+        mostrarToast('✅ Dados copiados!');
     }).catch(err => {
         console.error('Erro ao copiar:', err);
         mostrarToast('❌ Erro ao copiar');
@@ -457,15 +505,30 @@ function exportarPDF() {
             'saida': 'Saída'
         }[just.tipo];
         
-        // Nome e data
+        // Nome, CPF e data
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
-        doc.text(`${index + 1}. ${just.nome}`, 20, y);
+        doc.text(`${index + 1}. ${just.nome}${just.cpf ? ' — CPF: ' + just.cpf : ''}`, 20, y);
         
         doc.setFont(undefined, 'normal');
         doc.setFontSize(10);
         y += 6;
-        doc.text(`Data: ${data}  |  Horário: ${just.horario}  |  Tipo: ${tipoLabel}`, 20, y);
+        doc.text(`Data: ${data}`, 20, y);
+        
+        // Marcações
+        if (just.marcacoes && just.marcacoes.length > 0) {
+            just.marcacoes.forEach(m => {
+                y += 5;
+                if (y > 270) { doc.addPage(); y = 20; }
+                const linhaM = m.tipo === 'intervalo'
+                    ? `  • Intervalo: saída ${m.horarioSaida} / retorno ${m.horarioRetorno}`
+                    : `  • ${getTipoLabel(m.tipo)}: ${m.horario}`;
+                doc.text(linhaM, 20, y);
+            });
+        } else {
+            y += 5;
+            doc.text(`  • ${getTipoLabel(just.tipo)}: ${just.horario}`, 20, y);
+        }
         
         y += 5;
         doc.text(`Motivo: ${just.motivo.substring(0, 80)}${just.motivo.length > 80 ? '...' : ''}`, 20, y);
