@@ -117,6 +117,8 @@ function getTipoLabel(tipo) {
         'entrada': 'Entrada',
         'saida_almoco': 'Saída Almoço',
         'volta_almoco': 'Volta Almoço',
+        'intervalo_entrada': 'Intervalo - Entrada',
+        'intervalo_saida': 'Intervalo - Saída',
         'intervalo': 'Intervalo',
         'saida': 'Saída'
     }[tipo] || tipo;
@@ -124,16 +126,18 @@ function getTipoLabel(tipo) {
 
 // Helper: resumo de marcações para exibição compacta na tabela
 function getMarcacoesResumo(just) {
-    if (just.marcacoes && just.marcacoes.length > 0) {
+    if (just.marcacoes && Array.isArray(just.marcacoes) && just.marcacoes.length > 0) {
         return just.marcacoes.map(m => {
-            if (m.tipo === 'intervalo') {
-                return `Intervalo (${m.horarioSaida}–${m.horarioRetorno})`;
+            // legado com horário duplo
+            if (m.tipo === 'intervalo' && m.horarioSaida) {
+                return `<span style="display:block">Intervalo: ${m.horarioSaida}–${m.horarioRetorno}</span>`;
             }
-            return `${getTipoLabel(m.tipo)} ${m.horario}`;
-        }).join('<br>');
+            return `<span style="display:block">${getTipoLabel(m.tipo)}: <strong>${m.horario}</strong></span>`;
+        }).join('');
     }
-    // Retrocompatibilidade com registros antigos
-    return `${getTipoLabel(just.tipo)} ${just.horario}`;
+    // Retrocompatibilidade com registros antigos (campo simples)
+    if (just.horario) return `<span>${getTipoLabel(just.tipo)}: <strong>${just.horario}</strong></span>`;
+    return '—';
 }
 
 // Renderizar tabela
@@ -232,26 +236,26 @@ function verDetalhes(id) {
 
     // Montar bloco de marcações (suporte a múltiplas e retrocompat)
     let marcacoesHTML = '';
-    if (just.marcacoes && just.marcacoes.length > 0) {
-        marcacoesHTML = just.marcacoes.map((m, i) => {
-            if (m.tipo === 'intervalo') {
+    let textoMarcacoes = '';
+    const listaMarcacoes = (just.marcacoes && Array.isArray(just.marcacoes) && just.marcacoes.length > 0)
+        ? just.marcacoes
+        : (just.horario ? [{ tipo: just.tipo, horario: just.horario }] : []);
+
+    if (listaMarcacoes.length > 0) {
+        marcacoesHTML = listaMarcacoes.map((m, i) => {
+            // legado duplo
+            if (m.tipo === 'intervalo' && m.horarioSaida) {
                 return `<div style="margin-bottom:6px;"><strong>${i+1}. Intervalo</strong> — Saída: ${m.horarioSaida} / Retorno: ${m.horarioRetorno}</div>`;
             }
             return `<div style="margin-bottom:6px;"><strong>${i+1}. ${getTipoLabel(m.tipo)}</strong> — ${m.horario}</div>`;
         }).join('');
-    } else {
-        marcacoesHTML = `<div><strong>${getTipoLabel(just.tipo)}</strong> — ${just.horario}</div>`;
-    }
-
-    // Texto para copiar (todas as marcações)
-    let textoMarcacoes = '';
-    if (just.marcacoes && just.marcacoes.length > 0) {
-        textoMarcacoes = just.marcacoes.map(m => {
-            if (m.tipo === 'intervalo') return `Intervalo: saída ${m.horarioSaida} / retorno ${m.horarioRetorno}`;
+        textoMarcacoes = listaMarcacoes.map(m => {
+            if (m.tipo === 'intervalo' && m.horarioSaida) return `Intervalo: saída ${m.horarioSaida} / retorno ${m.horarioRetorno}`;
             return `${getTipoLabel(m.tipo)}: ${m.horario}`;
         }).join('\n');
     } else {
-        textoMarcacoes = `${getTipoLabel(just.tipo)}: ${just.horario}`;
+        marcacoesHTML = '<div>Sem marcações registradas.</div>';
+        textoMarcacoes = '';
     }
     
     document.getElementById('modalBody').innerHTML = `
@@ -350,15 +354,14 @@ function copiarDados(id) {
     const just = todasJustificativas.find(j => j.id === id);
     if (!just) return;
     
-    let linhasMarcacoes = '';
-    if (just.marcacoes && just.marcacoes.length > 0) {
-        linhasMarcacoes = just.marcacoes.map(m => {
-            if (m.tipo === 'intervalo') return `Intervalo: saída ${m.horarioSaida} / retorno ${m.horarioRetorno}`;
-            return `${getTipoLabel(m.tipo)}: ${m.horario}`;
-        }).join('\n');
-    } else {
-        linhasMarcacoes = `${getTipoLabel(just.tipo)}: ${just.horario}`;
-    }
+    const lista = (just.marcacoes && Array.isArray(just.marcacoes) && just.marcacoes.length > 0)
+        ? just.marcacoes
+        : (just.horario ? [{ tipo: just.tipo, horario: just.horario }] : []);
+    
+    const linhasMarcacoes = lista.map(m => {
+        if (m.tipo === 'intervalo' && m.horarioSaida) return `Intervalo: saída ${m.horarioSaida} / retorno ${m.horarioRetorno}`;
+        return `${getTipoLabel(m.tipo)}: ${m.horario}`;
+    }).join('\n');
     
     const texto = `Colaborador: ${just.nome}${just.cpf ? ' | CPF: ' + just.cpf : ''}\nMarcações:\n${linhasMarcacoes}\n\nMotivo: ${just.motivo}`;
     

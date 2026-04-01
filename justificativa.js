@@ -34,12 +34,10 @@ const TIPOS = [
     { value: 'entrada', label: 'Entrada' },
     { value: 'saida_almoco', label: 'Saída para Almoço' },
     { value: 'volta_almoco', label: 'Volta do Almoço' },
-    { value: 'intervalo', label: 'Intervalo (entrada e saída)' },
+    { value: 'intervalo_entrada', label: 'Intervalo - Entrada' },
+    { value: 'intervalo_saida', label: 'Intervalo - Saída' },
     { value: 'saida', label: 'Saída' },
 ];
-
-// Tipos que têm dois horários (entrada + saída do intervalo)
-const TIPO_DUPLO = ['intervalo'];
 
 let contadorMarcacao = 0;
 
@@ -61,61 +59,18 @@ function criarMarcacaoCard(numero) {
             <button type="button" class="btn-remover-marcacao" onclick="removerMarcacao(this)">✕ Remover</button>
         </div>
         <div class="marcacao-row">
-            <div class="marcacao-field" style="grid-column: 1 / -1;">
+            <div class="marcacao-field">
                 <label>Tipo de Marcação <span class="required">*</span></label>
                 <select class="campo-tipo" required>
                     ${opcoesHTML}
                 </select>
             </div>
-        </div>
-        <!-- Horário simples (maioria dos tipos) -->
-        <div class="horario-simples">
-            <label style="font-size:13px; color:#374151; font-weight:600; margin-bottom:6px; display:block;">
-                Horário que Deveria Ter Batido <span class="required">*</span>
-            </label>
-            <input type="time" class="campo-horario">
-        </div>
-        <!-- Horários duplos (intervalo) -->
-        <div class="horario-intervalo-group">
-            <div>
-                <label style="font-size:13px; color:#374151; font-weight:600; margin-bottom:6px; display:block;">
-                    Horário de Saída <span class="required">*</span>
-                </label>
-                <input type="time" class="campo-horario-saida">
-            </div>
-            <div>
-                <label style="font-size:13px; color:#374151; font-weight:600; margin-bottom:6px; display:block;">
-                    Horário de Retorno <span class="required">*</span>
-                </label>
-                <input type="time" class="campo-horario-retorno">
+            <div class="marcacao-field">
+                <label>Horário que Deveria Ter Batido <span class="required">*</span></label>
+                <input type="time" class="campo-horario" required>
             </div>
         </div>
     `;
-
-    // Listener para mostrar/esconder campos de horário conforme tipo
-    const selectTipo = card.querySelector('.campo-tipo');
-    const horarioSimples = card.querySelector('.horario-simples');
-    const horarioDuplo = card.querySelector('.horario-intervalo-group');
-    const campoHorario = card.querySelector('.campo-horario');
-    const campoSaida = card.querySelector('.campo-horario-saida');
-    const campoRetorno = card.querySelector('.campo-horario-retorno');
-
-    selectTipo.addEventListener('change', function() {
-        const isDuplo = TIPO_DUPLO.includes(this.value);
-        if (isDuplo) {
-            horarioSimples.classList.add('hide');
-            horarioDuplo.classList.add('show');
-            campoHorario.required = false;
-            campoSaida.required = true;
-            campoRetorno.required = true;
-        } else {
-            horarioSimples.classList.remove('hide');
-            horarioDuplo.classList.remove('show');
-            campoHorario.required = !!this.value;
-            campoSaida.required = false;
-            campoRetorno.required = false;
-        }
-    });
 
     return card;
 }
@@ -195,22 +150,12 @@ document.getElementById('justificativaForm').addEventListener('submit', async fu
             return;
         }
 
-        if (TIPO_DUPLO.includes(tipo)) {
-            const saida   = card.querySelector('.campo-horario-saida').value;
-            const retorno = card.querySelector('.campo-horario-retorno').value;
-            if (!saida || !retorno) {
-                showAlert('Informe os horários de saída e retorno do intervalo.', 'error');
-                return;
-            }
-            marcacoes.push({ tipo, horarioSaida: saida, horarioRetorno: retorno });
-        } else {
-            const horario = card.querySelector('.campo-horario').value;
-            if (!horario) {
-                showAlert('Informe o horário de todas as marcações.', 'error');
-                return;
-            }
-            marcacoes.push({ tipo, horario });
+        const horario = card.querySelector('.campo-horario').value;
+        if (!horario) {
+            showAlert('Informe o horário de todas as marcações.', 'error');
+            return;
         }
+        marcacoes.push({ tipo, horario });
     }
 
     if (marcacoes.length === 0) {
@@ -225,7 +170,7 @@ document.getElementById('justificativaForm').addEventListener('submit', async fu
         data,
         marcacoes,
         // Compat retroativa: preenche horario/tipo com a primeira marcação
-        horario: marcacoes[0].horario || `${marcacoes[0].horarioSaida} - ${marcacoes[0].horarioRetorno}`,
+        horario: marcacoes[0].horario,
         tipo: marcacoes[0].tipo,
         motivo,
         dataEnvio: serverTimestamp(),
