@@ -159,7 +159,7 @@ function renderizarTabela(justificativas) {
     }
     
     tbody.innerHTML = justificativas.map(just => {
-        const data = new Date(just.data).toLocaleDateString('pt-BR');
+        const data = new Date(just.data + 'T12:00:00').toLocaleDateString('pt-BR');
         
         const statusClass = just.status || 'pendente';
         const statusLabel = {
@@ -223,7 +223,7 @@ function verDetalhes(id) {
     const just = todasJustificativas.find(j => j.id === id);
     if (!just) return;
     
-    const data = new Date(just.data).toLocaleDateString('pt-BR');
+    const data = new Date(just.data + 'T12:00:00').toLocaleDateString('pt-BR');
     const dataEnvio = just.dataEnvio ? 
         new Date(just.dataEnvio.toDate()).toLocaleString('pt-BR') : 
         'Aguardando...';
@@ -500,7 +500,7 @@ function exportarPDF() {
             y = 20;
         }
         
-        const data = new Date(just.data).toLocaleDateString('pt-BR');
+        const data = new Date(just.data + 'T12:00:00').toLocaleDateString('pt-BR');
         const tipoLabel = {
             'entrada': 'Entrada',
             'saida_almoco': 'Saída Almoço',
@@ -592,7 +592,7 @@ function exportarPDFTodos() {
     todos.forEach((just, index) => {
         if (y > 260) { doc.addPage(); y = 20; }
 
-        const data = new Date(just.data).toLocaleDateString('pt-BR');
+        const data = new Date(just.data + 'T12:00:00').toLocaleDateString('pt-BR');
 
         // Nome e CPF
         doc.setFontSize(11);
